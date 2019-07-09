@@ -21,7 +21,6 @@ connection.connect(function(err) {
     throw err;
    }
    else {
-       console.log('\n');
        console.log('------------------------------');
        console.log('| Connected to MySQL Server! |');
        console.log('------------------------------');
@@ -115,7 +114,7 @@ async function getNetworkDownloadSpeed() {
           }
         });
     
-    console.log("\n******************SPEED TEST #" + tempNum + "******************");
+    console.log("\n******************SPEED TEST #" + testNum + "******************");
     console.log("Current Time: " + time);
     console.log("Current Date: " + date);
     console.log("\tCurrent Download Speed: " + tempNum.toFixed(2) + " Mbps");
