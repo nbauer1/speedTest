@@ -1,9 +1,8 @@
 # speedTest
 NodeJs Module that tests network speed and records data in a MYSQL Database
 # Instructions
-Clone the repo with command: `git clone https://github.com/nbauer1/speedTest.git`
+Clone the repo using the command: `git clone https://github.com/nbauer1/speedTest.git`
 # Setting Up Database
-A Local MySQL Server was used to store data and was accessed using phpMyAdmin
+A local MySQL server was used to store data and was accessed using phpMyAdmin
 # Starting App
-Start app using command: `npm start`
-
+Start app using the command: `npm start`
