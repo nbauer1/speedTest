@@ -1,3 +1,4 @@
+//Setting Constants
 const express = require('express');
 const router = express.Router();
 const app = express();
@@ -7,7 +8,7 @@ const NetworkSpeed = require('./app.js');
 const testNetworkSpeed = new NetworkSpeed();
 
 // Configure MySQL connection
-var connection = mysql.createConnection({
+const connection = mysql.createConnection({
 	host: 'localhost',
 	user: 'root',
 	password: 'rootpassword',
@@ -18,7 +19,7 @@ var connection = mysql.createConnection({
 connection.connect(function(err) {
    if (err) {
       console.log('Error Connecting to MySQL Server');
-    throw err;
+      throw err;
    }
    else {
        console.log('------------------------------');
@@ -28,70 +29,94 @@ connection.connect(function(err) {
     }
 });
 
-/*NOT WORKING
-var deleteIDs = "DELETE FROM 'speedTest'";
-connection.query(deleteIDs, function (err, result) {
-    if (err) throw err;
-  });
-*/
-
-//RESETTING AUTO_INCREMENT
-var resetID = "ALTER TABLE speedTest AUTO_INCREMENT = 1";
-connection.query(resetID, function (err, result) {
-    if (err) throw err;
-});
-
 var count = 1;
-var seconds = 5 * 1000;
+var seconds = 1 * 1000;
+var targetCount = 60;
 
-function myLoop () {     
+//Clearing Database for Reuse 
+resetDB();
+//Resetting Auto-Incrementing Primary Key: 'id'
+resetID();
+//Calling Timeout Loop
+runTest();
+
+function runTest() {     
    setTimeout(function () {
-       
-       
-       getNetworkDownloadSpeed(); 
-       //getNetworkUploadSpeed();
-       count++;
-       //will refresh every 5 seconds for 10 minutes
-       if (count <= 120)
-           myLoop();
-        else {
+       if(count <= targetCount) {
+           getNetworkDownloadSpeed();
+           //getNetworkUploadSpeed();
+           runTest();
+           count++;
+       }
+       else if (count >= (targetCount + 1)) {
            connection.end();
-           console.log('\n');
-           console.log('------------------------------');
-           console.log('|   Speed Test is Complete!  |');
-           console.log('------------------------------');
-           console.log('\n');
-        }
+           console.log('\t------------------------------');
+           console.log('\t|   Speed Test is Complete!  |');
+           console.log('\t------------------------------\n');
+       }
    }, seconds)
 }
 
-myLoop(); 
+//Bad Fix, too many uneeded queries but Deletes 200 Records at a time
+function resetDB() {
+    var id = 1;
+    var flag = false;
+    while(id <= 200) {
+        var deleteIDs = "DELETE FROM `speedTest` WHERE `speedTest`.`id` = " + id;
+        connection.query(deleteIDs, function (err, result) {
+            if (err) {
+                flag = true;
+                throw err;
+            }
+        });
+        id++;
+    }
+    if(flag)
+        console.log("Error Clearing Database");
+}
+
+//RESETTING AUTO_INCREMENT
+function resetID() {
+    var resetID = "ALTER TABLE speedTest AUTO_INCREMENT = 1";
+    connection.query(resetID, function (err, result) {
+        if (err) throw err;
+    });
+}
 
 var runningTotal = 0;
 var testNum = 0;
 var tempNum;
+var time;
+var date;
 
-async function getNetworkDownloadSpeed() {
-
-    const baseUrl = 'http://eu.httpbin.org/stream-bytes/50000000';
-    const fileSize = 500000;
-    const speed = await testNetworkSpeed.checkDownloadSpeed(baseUrl, fileSize);
-    
-    //creating 'seconds' string
+//Generating Date & Timestamp
+function setDateAndTime() {
     var today = new Date();
-    var secs = parseFloat(today.getSeconds());
-    var secsStr = secs.toString();
-    if(secs < 10)
-        secsStr = "0" + secs.toString();
+    
+    var hours = parseFloat(today.getHours());
+    var hoursStr = hours.toString();
+    if(hours < 10)
+        hoursStr = "0" + hours.toString();
     
     var mins = parseFloat(today.getMinutes());
     var minsStr = mins.toString();
     if(mins < 10)
         minsStr = "0" + mins.toString();
     
-    var time = today.getHours() + ":" + minsStr + ":" + secsStr;
-    var date = (today.getMonth()+1)+'/' + today.getDate()+'/'+today.getFullYear();
+    var secs = parseFloat(today.getSeconds());
+    var secsStr = secs.toString();
+    if(secs < 10)
+        secsStr = "0" + secs.toString();
     
+    time = hoursStr + ":" + minsStr + ":" + secsStr;
+    date = (today.getMonth()+1)+'/' + today.getDate()+'/'+today.getFullYear();
+}
+
+async function getNetworkDownloadSpeed() {
+    const baseUrl = 'http://eu.httpbin.org/stream-bytes/50000000';
+    const fileSize = 500000;
+    const speed = await testNetworkSpeed.checkDownloadSpeed(baseUrl, fileSize);
+    setDateAndTime();
     testNum++;
     tempNum = parseFloat(speed.mbps);
     runningTotal += tempNum;
@@ -101,8 +126,6 @@ async function getNetworkDownloadSpeed() {
     var values = [
         [date, time, tempNum, avgNum]
         ];
-    /* NOT WORKING AS A FUNCTION
-    insert([values]);*/
     
     //Inserting Data into DB
     connection.query('INSERT INTO speedTest (date, timestamp, downloadSpeed, avgSpeed) VALUES ?', [values], function(err,result) {
@@ -121,17 +144,6 @@ async function getNetworkDownloadSpeed() {
     console.log("\n-------------------------------------------------");
     console.log("|     CURRENT RUNNING AVG: " + avg + " Mbps     |");
     console.log("-------------------------------------------------\n");
-}
-
-function insert(values) {
-    connection.query('INSERT INTO speedTest (date, timestamp, downloadSpeed, avgSpeed) VALUES ?', [values], function(err,result) {
-        if(err) {
-            console.log('\nError Transferring Data\n');
-        }
-        else {
-            console.log('\nData Transferred Sucessfully\n');
-        }
-        });
 }
 
 /* CAN GET UPLOAD WORKING -- keeps returning 0.15 or Infinity
